@@ -3,8 +3,6 @@
 {% else %}
 {% set GIT_VERSION = GIT_DESCRIBE_TAG[1:] %}
 {% endif %}
-# source will be downloaded prior to filling in jinja templates
-# Example assumes that this folder has setup.py in it
 source:
   git_url: ../
 
@@ -13,18 +11,17 @@ package:
   version: {{ GIT_VERSION }}
 
 build:
+  noarch: python
   script: python setup.py install --single-version-externally-managed --record record.txt
 
 requirements:
   build:
     - pip
     - pycairo-gtk2
-    - python 2.7*
 
   run:
     - pip
     - pycairo-gtk2
-    - python 2.7*
 
 test:
   imports:
