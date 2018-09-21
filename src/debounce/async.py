@@ -1,5 +1,5 @@
 '''
-.. versionadded:: X.X.X
+.. versionadded:: 0.3
 '''
 from __future__ import absolute_import
 
@@ -14,7 +14,7 @@ from . import DebounceBase
 
 class Debounce(DebounceBase):
     '''
-    .. versionadded:: X.X.X
+    .. versionadded:: 0.3
 
     Implementation using asyncio event loop for delayed function calls.
     '''

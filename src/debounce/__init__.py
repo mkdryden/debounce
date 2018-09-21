@@ -109,7 +109,7 @@ class DebounceBase(object):
         trailing : bool, optional
             Specify invoking on the trailing edge of the timeout.
 
-        .. versionchanged:: X.X.X
+        .. versionchanged:: 0.3
             Use `time.time()` instead of `datetime.datetime.now()` for time
             calculations to reduce overhead by ~10x.
         '''
@@ -244,7 +244,7 @@ class DebounceBase(object):
 
 class Debounce(DebounceBase):
     '''
-    .. versionadded:: X.X.X
+    .. versionadded:: 0.3
 
     Implementation using gobject event loop for delayed function calls.
     '''
