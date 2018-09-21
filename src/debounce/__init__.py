@@ -112,8 +112,12 @@ class DebounceBase(object):
         .. versionchanged:: 0.3
             Use `time.time()` instead of `datetime.datetime.now()` for time
             calculations to reduce overhead by ~10x.
+
+        .. versionchanged:: 0.4
+            Add support to accept keyword arguments.
         '''
         self.lastArgs = None
+        self.lastKwArgs = None
         self.result = None
         self.timerId = None
         self.lastCallTime = None
@@ -130,11 +134,16 @@ class DebounceBase(object):
                                  if self.maxing else max_wait)
         self.func = func
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
+        '''
+        .. versionchanged:: 0.4
+            Accept keyword arguments.
+        '''
         time_ = time.time()
         isInvoking = self.shouldInvoke(time_)
 
         self.lastArgs = args
+        self.lastKwArgs = kwargs
         self.lastCallTime = time_
 
         if isInvoking:
@@ -150,10 +159,12 @@ class DebounceBase(object):
 
     def invokeFunc(self, time_):
         args = self.lastArgs
+        kwargs = self.lastKwArgs
 
         self.lastArgs = None
+        self.lastKwArgs = None
         self.lastInvokeTime = time_
-        self.result = self.func(*args)
+        self.result = self.func(*args, **kwargs)
         if self.debug:
             _L().debug('time: %s, result: %s', time_, self.result)
         return self.result
@@ -217,13 +228,15 @@ class DebounceBase(object):
     def trailingEdge(self, time_):
         self.timerId = None
         if self.debug:
-            _L().debug('trailing: %s, lastArgs: %s', self.trailing, self.lastArgs)
+            _L().debug('trailing: %s, lastArgs: %s, lastKwArgs: %s',
+                       self.trailing, self.lastArgs, self.lastKwArgs)
 
         # Only invoke if we have `self.lastArgs` which means `func` has been
         # debounced at least once.
         if self.trailing and self.lastArgs is not None:
             return self.invokeFunc(time_)
         self.lastArgs = None
+        self.lastKwArgs = None
         return self.result
 
     def cancel(self):
@@ -231,6 +244,7 @@ class DebounceBase(object):
             self.cancelTimer(self.timerId)
         self.lastInvokeTime = self.T_0
         self.lastArgs = None
+        self.lastKwArgs = None
         self.lastCallTime = None
         self.timerId = None
 
