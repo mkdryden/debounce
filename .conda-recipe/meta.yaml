@@ -17,10 +17,12 @@ build:
 requirements:
   build:
     - pip
+    - logging-helpers
     - pycairo-gtk2
 
   run:
     - pip
+    - logging-helpers
     - pycairo-gtk2
 
 test:
