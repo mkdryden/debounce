@@ -17,15 +17,18 @@ build:
 requirements:
   build:
     - pip
+    - logging-helpers
     - pycairo-gtk2
 
   run:
     - pip
+    - logging-helpers
     - pycairo-gtk2
 
 test:
   imports:
     - debounce
+    - debounce.async
 
 about:
   home: https://github.com/sci-bots/{{ PKG_NAME }}

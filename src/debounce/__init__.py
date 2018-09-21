@@ -55,11 +55,9 @@ lodash license text::
     licenses; we recommend you read them, as their terms may differ from the
     terms above.
 '''
-import datetime as dt
-import inspect
-import logging
+import time
 
-import gobject
+from logging_helpers import _L
 
 from ._version import get_versions
 
@@ -67,37 +65,10 @@ from ._version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-# Short alias for `inspect.currentframe`
-_I = inspect.currentframe
 
-
-def _N(n):
-    '''Shorthand to join function name to module name.'''
-    return '.'.join((__name__, n))
-
-
-def _L(frame):
-    '''Shorthand to get logger for current function frame.'''
-    return logging.getLogger(_N(frame.f_code.co_name))
-
-
-def setTimeout(func, interval):
-    def _wrapped(*args):
-        func()
-        # Only call once.
-        return False
-    timer_id = gobject.timeout_add(interval, _wrapped)
-    _L(_I()).debug('timer_id: %s', timer_id)
-    return timer_id
-
-
-def clearTimeout(timer_id):
-    _L(_I()).debug('timer_id: %s', timer_id)
-    return gobject.source_remove(timer_id)
-
-
-class Debounce(object):
-    def __init__(self, func, wait, leading=False, max_wait=None, trailing=True):
+class DebounceBase(object):
+    def __init__(self, func, wait, leading=False, max_wait=None,
+                 trailing=True, debug=False):
         '''
         Creates a debounced function that delays invoking :data:`func` until
         after :data:`wait` milliseconds have elapsed since the last time the
@@ -137,6 +108,10 @@ class Debounce(object):
             delayed before it's invoked.
         trailing : bool, optional
             Specify invoking on the trailing edge of the timeout.
+
+        .. versionchanged:: 0.3
+            Use `time.time()` instead of `datetime.datetime.now()` for time
+            calculations to reduce overhead by ~10x.
         '''
         self.lastArgs = None
         self.result = None
@@ -144,22 +119,23 @@ class Debounce(object):
         self.lastCallTime = None
         self.leading = leading
         self.trailing = trailing
+        self.debug = debug
 
-        self.T_0 = dt.datetime.now()
+        self.T_0 = time.time()
         self.lastInvokeTime = self.T_0
         self.maxing = max_wait is not None
 
-        self.wait = dt.timedelta(seconds=1e-3 * wait)
-        self.max_wait = (max(dt.timedelta(seconds=1e-3 * max_wait), wait)
-                         if self.maxing else max_wait)
+        self.wait = 1e-3 * wait
+        self.max_wait =  1e-3 * (max(max_wait, wait)
+                                 if self.maxing else max_wait)
         self.func = func
 
     def __call__(self, *args):
-        time = dt.datetime.now()
-        isInvoking = self.shouldInvoke(time)
+        time_ = time.time()
+        isInvoking = self.shouldInvoke(time_)
 
         self.lastArgs = args
-        self.lastCallTime = time
+        self.lastCallTime = time_
 
         if isInvoking:
             if self.timerId is None:
@@ -172,32 +148,33 @@ class Debounce(object):
             self.timerId = self.startTimer(self.timerExpired, self.wait)
         return self.result
 
-    def invokeFunc(self, time):
+    def invokeFunc(self, time_):
         args = self.lastArgs
 
         self.lastArgs = None
-        self.lastInvokeTime = time
+        self.lastInvokeTime = time_
         self.result = self.func(*args)
-        _L(_I()).debug('time: %s, result: %s', time, self.result)
+        if self.debug:
+            _L().debug('time: %s, result: %s', time_, self.result)
         return self.result
 
     def startTimer(self, pendingFunc, wait):
-        return setTimeout(pendingFunc, int(wait.total_seconds() * 1e3))
+        raise NotImplementedError
 
     def cancelTimer(self, timer_id):
-        clearTimeout(timer_id)
+        raise NotImplementedError
 
-    def leadingEdge(self, time):
+    def leadingEdge(self, time_):
         # Reset any `max_wait` timer.
-        self.lastInvokeTime = time
+        self.lastInvokeTime = time_
         # Start the timer for the trailing edge.
         self.timerId = self.startTimer(self.timerExpired, self.wait)
         # Invoke the leading edge.
-        return self.invokeFunc(time) if self.leading else self.result
+        return self.invokeFunc(time_) if self.leading else self.result
 
-    def remainingWait(self, time):
-        timeSinceLastCall = time - self.lastCallTime
-        timeSinceLastInvoke = time - self.lastInvokeTime
+    def remainingWait(self, time_):
+        timeSinceLastCall = time_ - self.lastCallTime
+        timeSinceLastInvoke = time_ - self.lastInvokeTime
         timeWaiting = self.wait - timeSinceLastCall
 
         if self.maxing:
@@ -205,45 +182,47 @@ class Debounce(object):
         else:
             return timeWaiting
 
-    def shouldInvoke(self, time):
+    def shouldInvoke(self, time_):
         result = False
         if self.lastCallTime is None:
             # This is the first call.
             result = True
         elif self.maxing:
-            timeSinceLastInvoke = time - self.lastInvokeTime
+            timeSinceLastInvoke = time_ - self.lastInvokeTime
             if timeSinceLastInvoke >= self.max_wait:
                 # We've hit the `max_wait` limit.
                 result = True
         else:
-            timeSinceLastCall = time - self.lastCallTime
+            timeSinceLastCall = time_ - self.lastCallTime
 
             #  - activity has stopped and we're at the trailing edge; or
             #  - the system time has gone backwards and we're treating it
             #    as the trailing edge
             result = ((timeSinceLastCall >= self.wait) or
-                      (timeSinceLastCall < dt.timedelta(seconds=0)))
-        _L(_I()).debug('%s', result)
+                      (timeSinceLastCall < 0))
+        if self.debug:
+            _L().debug('%s', result)
         return result
 
     def timerExpired(self):
-        time = dt.datetime.now()
-        _L(_I()).debug('time: %s', time)
-        if self.shouldInvoke(time):
-            return self.trailingEdge(time)
+        time_ = time.time()
+        if self.debug:
+            _L().debug('time: %s', time_)
+        if self.shouldInvoke(time_):
+            return self.trailingEdge(time_)
         # Restart the timer.
         self.timerId = self.startTimer(self.timerExpired,
-                                       self.remainingWait(time))
+                                       self.remainingWait(time_))
 
-    def trailingEdge(self, time):
+    def trailingEdge(self, time_):
         self.timerId = None
-        _L(_I()).debug('trailing: %s, lastArgs: %s', self.trailing,
-                       self.lastArgs)
+        if self.debug:
+            _L().debug('trailing: %s, lastArgs: %s', self.trailing, self.lastArgs)
 
         # Only invoke if we have `self.lastArgs` which means `func` has been
         # debounced at least once.
         if self.trailing and self.lastArgs is not None:
-            return self.invokeFunc(time)
+            return self.invokeFunc(time_)
         self.lastArgs = None
         return self.result
 
@@ -257,7 +236,31 @@ class Debounce(object):
 
     def flush(self):
         return (self.result if self.timerId is None
-                else self.trailingEdge(dt.datetime.now()))
+                else self.trailingEdge(time.time()))
 
     def pending(self):
         return self.timerId is not None
+
+
+class Debounce(DebounceBase):
+    '''
+    .. versionadded:: 0.3
+
+    Implementation using gobject event loop for delayed function calls.
+    '''
+    def startTimer(self, pendingFunc, wait):
+        import gobject
+
+        def _wrapped(*args):
+            pendingFunc()
+            # Only call once.
+            return False
+        timer_id = gobject.timeout_add(wait, _wrapped)
+        _L().debug('timer_id: %s', timer_id)
+        return timer_id
+
+    def cancelTimer(self, timer_id):
+        import gobject
+
+        _L().debug('timer_id: %s', timer_id)
+        return gobject.source_remove(timer_id)
