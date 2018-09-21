@@ -58,7 +58,6 @@ lodash license text::
 import time
 
 from logging_helpers import _L
-import gobject
 
 from ._version import get_versions
 
@@ -159,6 +158,12 @@ class DebounceBase(object):
             _L().debug('time: %s, result: %s', time_, self.result)
         return self.result
 
+    def startTimer(self, pendingFunc, wait):
+        raise NotImplementedError
+
+    def cancelTimer(self, timer_id):
+        raise NotImplementedError
+
     def leadingEdge(self, time_):
         # Reset any `max_wait` timer.
         self.lastInvokeTime = time_
@@ -236,15 +241,26 @@ class DebounceBase(object):
     def pending(self):
         return self.timerId is not None
 
+
+class Debounce(DebounceBase):
+    '''
+    .. versionadded:: X.X.X
+
+    Implementation using gobject event loop for delayed function calls.
+    '''
     def startTimer(self, pendingFunc, wait):
+        import gobject
+
         def _wrapped(*args):
             pendingFunc()
             # Only call once.
             return False
-        timer_id = gobject.timeout_add(wait * 1e3, _wrapped)
+        timer_id = gobject.timeout_add(wait, _wrapped)
         _L().debug('timer_id: %s', timer_id)
         return timer_id
 
     def cancelTimer(self, timer_id):
+        import gobject
+
         _L().debug('timer_id: %s', timer_id)
         return gobject.source_remove(timer_id)
