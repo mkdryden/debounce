@@ -28,6 +28,7 @@ requirements:
 test:
   imports:
     - debounce
+    - debounce.async
 
 about:
   home: https://github.com/sci-bots/{{ PKG_NAME }}
