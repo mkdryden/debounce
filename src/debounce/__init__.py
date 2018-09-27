@@ -266,13 +266,17 @@ class Debounce(DebounceBase):
     Implementation using gobject event loop for delayed function calls.
     '''
     def startTimer(self, pendingFunc, wait):
+        '''
+        .. versionchanged:: X.X.X
+            Fix timeout duration.
+        '''
         import gobject
 
         def _wrapped(*args):
             pendingFunc()
             # Only call once.
             return False
-        timer_id = gobject.timeout_add(wait, _wrapped)
+        timer_id = gobject.timeout_add(int(wait * 1e3), _wrapped)
         _L().debug('timer_id: %s', timer_id)
         return timer_id
 
