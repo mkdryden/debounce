@@ -116,7 +116,7 @@ class DebounceBase(object):
         .. versionchanged:: 0.4
             Add support to accept keyword arguments.
 
-        .. versionchanged:: X.X.X
+        .. versionchanged:: 0.4.1
             Fix where :data:`max_wait` is not set.
         '''
         self.lastArgs = None
@@ -267,7 +267,7 @@ class Debounce(DebounceBase):
     '''
     def startTimer(self, pendingFunc, wait):
         '''
-        .. versionchanged:: X.X.X
+        .. versionchanged:: 0.4.1
             Fix timeout duration.
         '''
         import gobject
