@@ -115,6 +115,9 @@ class DebounceBase(object):
 
         .. versionchanged:: 0.4
             Add support to accept keyword arguments.
+
+        .. versionchanged:: X.X.X
+            Fix where :data:`max_wait` is not set.
         '''
         self.lastArgs = None
         self.lastKwArgs = None
@@ -130,8 +133,8 @@ class DebounceBase(object):
         self.maxing = max_wait is not None
 
         self.wait = 1e-3 * wait
-        self.max_wait =  1e-3 * (max(max_wait, wait)
-                                 if self.maxing else max_wait)
+        self.max_wait =  (1e-3 * max(max_wait, wait)
+                          if self.maxing else None)
         self.func = func
 
     def __call__(self, *args, **kwargs):
