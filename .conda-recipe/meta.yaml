@@ -12,23 +12,20 @@ package:
 
 build:
   noarch: python
-  script: python setup.py install --single-version-externally-managed --record record.txt
+  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
 
 requirements:
-  build:
+  host:
     - pip
-    - logging-helpers
-    - pycairo-gtk2
+    - python
 
   run:
     - pip
     - logging-helpers
-    - pycairo-gtk2
 
 test:
   imports:
     - debounce
-    - debounce.async
 
 about:
   home: https://github.com/sci-bots/{{ PKG_NAME }}
