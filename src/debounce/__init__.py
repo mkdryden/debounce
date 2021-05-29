@@ -270,18 +270,22 @@ class Debounce(DebounceBase):
         .. versionchanged:: 0.4.1
             Fix timeout duration.
         '''
-        import gobject
+        import gi
+        gi.require_version('Gtk', '3.0')
+        from gi.repository import GObject
 
         def _wrapped(*args):
             pendingFunc()
             # Only call once.
             return False
-        timer_id = gobject.timeout_add(int(wait * 1e3), _wrapped)
+        timer_id = GObject.timeout_add(int(wait * 1e3), _wrapped)
         _L().debug('timer_id: %s', timer_id)
         return timer_id
 
     def cancelTimer(self, timer_id):
-        import gobject
+        import gi
+        gi.require_version('Gtk', '3.0')
+        from gi.repository import GObject
 
         _L().debug('timer_id: %s', timer_id)
-        return gobject.source_remove(timer_id)
+        return GObject.source_remove(timer_id)
